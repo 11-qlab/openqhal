@@ -1,0 +1,21 @@
+# Build
+pybind11>=2.12
+cmake>=3.28
+ninja>=1.11
+
+# Python frontend
+numpy>=1.26
+scipy>=1.11
+h5py>=3.10
+
+# Optional: accurate pulse simulation
+# qutip>=5.0
+
+# Visualization
+matplotlib>=3.8
+
+# Dev
+pytest>=8.0
+black>=24.0
+ruff>=0.4
+mypy>=1.10

@@ -1,0 +1,14 @@
+
+# Python build artifacts
+*.cpython-*.so
+python/qhal/*.so
+python/qhal/__pycache__/
+
+# Backups
+*.bak
+*.orig
+
+# Stray files
+pipeline.txt
+tree.txt
+Calibration format

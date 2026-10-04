@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "device_name": "nv-sample-01",
+  "cnot_duration_ns": 200.0,
+  "cz_duration_ns": 150.0,
+  "measure_duration_ns": 300.0,
+  "qubits": {
+    "0": {
+      "rabi_hz": 10000000.0,
+      "anharm_hz": 2870000000.0,
+      "drive_freq_hz": 2870000000.0,
+      "t1_ns": 1000000.0,
+      "t2_ns": 100000.0,
+      "drag_beta": 0.5,
+      "sigma_frac": 0.2,
+      "readout_duration_ns": 300.0,
+      "virtual_z": true
+    },
+    "1": {
+      "rabi_hz": 9500000.0,
+      "anharm_hz": 2850000000.0,
+      "drive_freq_hz": 2850000000.0,
+      "t1_ns": 900000.0,
+      "t2_ns": 80000.0,
+      "drag_beta": 0.4,
+      "sigma_frac": 0.2,
+      "readout_duration_ns": 300.0,
+      "virtual_z": true
+    }
+  }
+}
