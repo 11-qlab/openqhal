@@ -135,7 +135,7 @@ def submit(inp: SubmitIn):
 @app.get("/jobs")
 def list_jobs(limit: int = 20):
     jobs = queue.list_jobs(limit=limit)
-    return {"jobs": [JobOut(**j.to_dict()).dict() for j in jobs]}
+    return {"jobs": [JobOut(**j.to_dict()).model_dump() for j in jobs]}
 
 
 @app.get("/jobs/{job_id}", response_model=JobOut)
@@ -150,6 +150,14 @@ def get_job(job_id: str):
 #  Lifespan: shut down the worker cleanly
 # ─────────────────────────────────────────────────────────────────────
 
-@app.on_event("shutdown")
-def on_shutdown():
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def _lifespan(app):
+    yield
     queue.shutdown()
+
+# Rebind — but FastAPI needs lifespan at construction time,
+# so if the server crashes on on_event, remove it entirely and
+# rely on process exit for cleanup.
+

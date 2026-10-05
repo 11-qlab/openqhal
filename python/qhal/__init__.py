@@ -118,6 +118,5 @@ try:
         "Transpiler", "CouplingMap", "TranspileResult",
         "JobQueue", "Job", "JobStatus", "make_simulator_executor",
     ]
-except ImportError as e:
-    import warnings
-    warnings.warn(f"some IR/transpiler/queue modules unavailable: {e}")
+except ImportError:
+    pass  # Optional features; core qhal_cpp still loads
