@@ -1,14 +1,35 @@
+# Build artifacts
+build/
+*.o
+*.so
+*.dylib
+*.dll
+*.a
 
-# Python build artifacts
-*.cpython-*.so
-python/qhal/*.so
-python/qhal/__pycache__/
+# Python
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test outputs
+/tmp/*.npy
+/tmp/*.csv
+/tmp/*.seqc
+/tmp/*.bin
 
 # Backups
 *.bak
 *.orig
-
-# Stray files
-pipeline.txt
-tree.txt
-Calibration format
