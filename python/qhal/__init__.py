@@ -24,6 +24,8 @@ from .qhal_cpp import (
     Backend,
     MockAWG,
     ExecutionStats,
+    QICKBackend,
+    ZurichBackend,
 )
 
 __version__ = "0.1.0"
@@ -37,7 +39,7 @@ __all__ = [
     "save_npy", "save_raw", "save_csv", "save_seqc",
     "total_energy",
     "Backend", "MockAWG", "ExecutionStats",
-]
+    "QICKBackend", "ZurichBackend", ]
 
 
 # ---------------------------------------------------------------------
@@ -88,3 +90,11 @@ class Circuit:
         for g in self._gates:
             lines.append(f"  {g}")
         return "\n".join(lines)
+
+
+# Pure Python backends
+try:
+    from .backends.ibm import IBMBackend, available_backends
+    __all__ += ["IBMBackend", "available_backends"]
+except ImportError:
+    pass

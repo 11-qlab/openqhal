@@ -12,9 +12,45 @@
 #include "qhal/waveform.hpp"
 #include "qhal/backend.hpp"
 #include "qhal/backends/mock_awg.hpp"
+#include "qhal/backends/qick.hpp"
+#include "qhal/backends/zurich.hpp"
 
 namespace py = pybind11;
 using namespace qhal;
+
+
+// ---------------------------------------------------------------------
+// Trampoline class: lets Python subclasses override Backend methods
+// ---------------------------------------------------------------------
+class PyBackend : public Backend {
+public:
+    using Backend::Backend;
+
+    std::string name() const override {
+        PYBIND11_OVERRIDE_PURE(std::string, Backend, name);
+    }
+    bool connect() override {
+        PYBIND11_OVERRIDE_PURE(bool, Backend, connect);
+    }
+    void disconnect() override {
+        PYBIND11_OVERRIDE_PURE(void, Backend, disconnect);
+    }
+    bool is_connected() const override {
+        PYBIND11_OVERRIDE_PURE(bool, Backend, is_connected);
+    }
+    bool upload(const Waveform& wf) override {
+        PYBIND11_OVERRIDE_PURE(bool, Backend, upload, wf);
+    }
+    bool trigger() override {
+        PYBIND11_OVERRIDE_PURE(bool, Backend, trigger);
+    }
+    std::vector<int32_t> acquire(int32_t shots) override {
+        PYBIND11_OVERRIDE_PURE(std::vector<int32_t>, Backend, acquire, shots);
+    }
+    ExecutionStats last_stats() const override {
+        PYBIND11_OVERRIDE_PURE(ExecutionStats, Backend, last_stats);
+    }
+};
 
 PYBIND11_MODULE(qhal_cpp, m) {
     m.doc() = "OpenQHAL — quantum pulse compiler core (C++ backend)";
@@ -212,6 +248,7 @@ PYBIND11_MODULE(qhal_cpp, m) {
     // Backend + MockAWG
     // -----------------------------------------------------------------
     py::class_<ExecutionStats>(m, "ExecutionStats")
+        .def(py::init<>())
         .def_readwrite("upload_ms",        &ExecutionStats::upload_ms)
         .def_readwrite("trigger_ms",       &ExecutionStats::trigger_ms)
         .def_readwrite("acquisition_ms",   &ExecutionStats::acquisition_ms)
@@ -229,7 +266,18 @@ PYBIND11_MODULE(qhal_cpp, m) {
             return std::string(buf);
         });
 
-    py::class_<Backend>(m, "Backend");
+    py::class_<Backend, PyBackend>(m, "Backend")
+        .def(py::init<>())
+        .def("name",         &Backend::name)
+        .def("connect",      &Backend::connect)
+        .def("disconnect",   &Backend::disconnect)
+        .def("is_connected", &Backend::is_connected)
+        .def("upload",       &Backend::upload)
+        .def("trigger",      &Backend::trigger)
+        .def("acquire",      &Backend::acquire, py::arg("shot_count") = 1)
+        .def("last_stats",   &Backend::last_stats)
+        .def("execute",      &Backend::execute,
+             py::arg("wf"), py::arg("shot_count") = 1);
 
     py::class_<MockAWG, Backend>(m, "MockAWG")
         .def(py::init<>())
@@ -251,4 +299,48 @@ PYBIND11_MODULE(qhal_cpp, m) {
         .def("trigger",      &MockAWG::trigger)
         .def("acquire",      &MockAWG::acquire, py::arg("shot_count") = 1)
         .def("last_stats",   &MockAWG::last_stats);
+
+    py::class_<QICKBackend, Backend>(m, "QICKBackend")
+        .def(py::init<>())
+        .def(py::init([](const std::string& bitstream, int gen_ch, int ro_ch) {
+            QICKBackend::Config c;
+            c.bitstream_path = bitstream;
+            c.gen_ch = gen_ch;
+            c.ro_ch  = ro_ch;
+            return QICKBackend(c);
+        }), py::arg("bitstream_path"), py::arg("gen_ch") = 0,
+            py::arg("ro_ch") = 0)
+        .def("name",         &QICKBackend::name)
+        .def("connect",      &QICKBackend::connect)
+        .def("disconnect",   &QICKBackend::disconnect)
+        .def("is_connected", &QICKBackend::is_connected)
+        .def("upload",       &QICKBackend::upload)
+        .def("trigger",      &QICKBackend::trigger)
+        .def("acquire",      &QICKBackend::acquire,
+             py::arg("shot_count") = 1)
+        .def("last_stats",   &QICKBackend::last_stats);
+
+    py::class_<ZurichBackend, Backend>(m, "ZurichBackend")
+        .def(py::init<>())
+        .def(py::init([](const std::string& host,
+                         const std::string& device_id,
+                         int32_t awg_index) {
+            ZurichBackend::Config c;
+            c.host      = host;
+            c.device_id = device_id;
+            c.awg_index = awg_index;
+            return ZurichBackend(c);
+        }), py::arg("host")      = "localhost",
+            py::arg("device_id") = "dev8000",
+            py::arg("awg_index") = 0)
+        .def("name",         &ZurichBackend::name)
+        .def("connect",      &ZurichBackend::connect)
+        .def("disconnect",   &ZurichBackend::disconnect)
+        .def("is_connected", &ZurichBackend::is_connected)
+        .def("upload",       &ZurichBackend::upload)
+        .def("trigger",      &ZurichBackend::trigger)
+        .def("acquire",      &ZurichBackend::acquire,
+             py::arg("shot_count") = 1)
+        .def("last_stats",   &ZurichBackend::last_stats);
+
 }
