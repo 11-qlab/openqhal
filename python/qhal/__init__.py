@@ -98,3 +98,26 @@ try:
     __all__ += ["IBMBackend", "available_backends"]
 except ImportError:
     pass
+
+
+# Heterogeneous joint measurement primitive
+try:
+    from .joint import JointMeasurement, JointResult, TransducerBackend
+    __all__ += ["JointMeasurement", "JointResult", "TransducerBackend"]
+except ImportError:
+    pass
+
+
+# Circuit IR + transpiler + queue + API
+try:
+    from .ir import Circuit as IRCircuit, Gate as IRGate, bell_pair, ghz
+    from .transpiler import Transpiler, CouplingMap, TranspileResult
+    from .queue import JobQueue, Job, JobStatus, make_simulator_executor
+    __all__ += [
+        "IRCircuit", "IRGate", "bell_pair", "ghz",
+        "Transpiler", "CouplingMap", "TranspileResult",
+        "JobQueue", "Job", "JobStatus", "make_simulator_executor",
+    ]
+except ImportError as e:
+    import warnings
+    warnings.warn(f"some IR/transpiler/queue modules unavailable: {e}")
