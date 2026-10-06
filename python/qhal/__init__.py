@@ -120,3 +120,19 @@ try:
     ]
 except ImportError:
     pass  # Optional features; core qhal_cpp still loads
+
+
+# qLDPC + CDCD
+try:
+    from .qldpc import QLDPCCode, bb_code, gross_code, small_bb, repetition
+    from .cdcd import (
+        CheckAnnotation, AnnotatedProgram,
+        annotate_program, build_check_noise, build_detector_error_model,
+    )
+    __all__ += [
+        "QLDPCCode", "bb_code", "gross_code", "small_bb", "repetition",
+        "CheckAnnotation", "AnnotatedProgram",
+        "annotate_program", "build_check_noise", "build_detector_error_model",
+    ]
+except ImportError:
+    pass
