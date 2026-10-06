@@ -84,27 +84,41 @@ class QLDPCCode:
 # ─────────────────────────────────────────────────────────────────
 
 def bb_code(l: int, m: int, c_powers: list, d_powers: list,
-            name: str = "BB") -> QLDPCCode:
-    """Build a Bivariate Bicycle code from polynomials."""
+            name: str = "BB", compute_logicals: bool = False) -> QLDPCCode:
+    """Build a Bivariate Bicycle code from polynomials.
+
+    If compute_logicals=True, uses bposd to compute the lx/lz matrices.
+    """
     A = _poly_matrix(l, m, c_powers)
     B = _poly_matrix(l, m, d_powers)
     Hx = np.hstack([A, B])
     Hz = np.hstack([B.T, A.T])
-    return QLDPCCode(name=f"{name}[[{2*l*m}]]", hx=Hx, hz=Hz)
+
+    lx = lz = None
+    if compute_logicals:
+        try:
+            from bposd.css import css_code as _css
+            q = _css(hx=Hx, hz=Hz)
+            lx = q.lx.toarray().astype(np.uint8)
+            lz = q.lz.toarray().astype(np.uint8)
+        except Exception:
+            pass
+
+    return QLDPCCode(name=f"{name}[[{2*l*m}]]", hx=Hx, hz=Hz, lx=lx, lz=lz)
 
 
 def gross_code() -> QLDPCCode:
     """The [[144, 12, 12]] gross code (Bravyi et al., Nature 2024)."""
     c_powers = [(3, 0), (0, 1), (0, 2)]
     d_powers = [(0, 3), (1, 0), (2, 0)]
-    return bb_code(12, 6, c_powers, d_powers, name="Gross")
+    return bb_code(12, 6, c_powers, d_powers, name="Gross", compute_logicals=True)
 
 
 def small_bb() -> QLDPCCode:
     """The [[98, 6, 12]] variant — smaller, faster to test."""
     c_powers = [(1, 0), (0, 3), (0, 4)]
     d_powers = [(0, 1), (3, 0), (4, 0)]
-    return bb_code(7, 7, c_powers, d_powers, name="SmallBB")
+    return bb_code(7, 7, c_powers, d_powers, name="SmallBB", compute_logicals=True)
 
 
 def repetition(n: int) -> QLDPCCode:
