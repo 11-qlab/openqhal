@@ -33,3 +33,13 @@ Thumbs.db
 # Backups
 *.bak
 *.orig
+
+# LaTeX build artifacts (keep .bbl and .pdf)
+paper/*.aux
+paper/*.blg
+paper/*.log
+paper/*.out
+paper/*.toc
+paper/*.fls
+paper/*.fdb_latexmk
+paper/openqhalNotes.bib
