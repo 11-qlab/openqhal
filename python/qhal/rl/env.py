@@ -127,24 +127,38 @@ class AtomArrangementEnv:
         self.prev_dist = self._dist()
         return self._obs()
 
+    def action_mask(self) -> torch.Tensor:
+        """Boolean mask: True where the action is valid on this grid."""
+        mask = torch.ones(self.n_actions, dtype=torch.bool)
+        for a in range(self.n_actions):
+            axis, idx, direction, mag = self.decode_action(a)
+            limit = self.H if axis == 0 else self.W
+            if idx >= limit:
+                mask[a] = False
+                continue
+            # Out of bounds shift
+            new_idx = idx + direction * mag
+            if new_idx < 0 or new_idx >= limit:
+                mask[a] = False
+        return mask
+
     def step(self, action: int) -> StepResult:
         self.grid = self._apply_move(self.grid, action)
         self.steps += 1
         new_dist = self._dist()
 
         delta = self.prev_dist - new_dist
-        # Potential-based reward (Ng et al. 1999): sum of rewards over an
-        # episode = initial_dist - final_dist + terminal_bonus.
-        # No step penalty — that is what caused the sign-flip bug.
-        reward = float(delta)
+        # Amplified potential-based reward (still Ng et al. 1999 form,
+        # just scaled 3x so the signal dominates any exploration noise)
+        reward = 0.5 * float(delta)
 
         self.prev_dist = new_dist
 
         if new_dist == 0:
-            reward += 10.0
+            reward += 5.0
             done = True
         elif self.steps >= self.max_steps:
-            reward -= 3.0              # failure penalty, applied once
+            reward -= 1.0              # failure penalty, applied once
             done = True
         else:
             done = False
