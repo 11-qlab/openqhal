@@ -1,126 +1,76 @@
 """
 OpenQHAL — Quantum Hardware Abstraction Layer
 Python frontend for the C++ core.
+
+The C++ extension (qhal_cpp) is optional for pure-Python modules
+(RL env, gym wrapper, IR, transpiler, queue). It is required for
+compilation, waveform rendering, and backend dispatch.
 """
-from .qhal_cpp import (
-    Channel,
-    Envelope,
-    Gate,
-    Pulse,
-    Program,
-    QubitCalibration,
-    Calibration,
-    Compiler,
-    Scheduler,
-    ScheduleResult,
-    Simulator,
-    Waveform,
-    render,
-    save_npy,
-    save_raw,
-    save_csv,
-    save_seqc,
-    total_energy,
-    Backend,
-    MockAWG,
-    ExecutionStats,
-    QICKBackend,
-    ZurichBackend,
-)
+from __future__ import annotations
 
-__version__ = "0.1.0"
-__all__ = [
-    "Channel", "Envelope",
-    "Gate", "Pulse", "Program",
-    "QubitCalibration", "Calibration",
-    "Compiler", "Scheduler", "ScheduleResult",
-    "Simulator",
-    "Waveform", "render",
-    "save_npy", "save_raw", "save_csv", "save_seqc",
-    "total_energy",
-    "Backend", "MockAWG", "ExecutionStats",
-    "QICKBackend", "ZurichBackend", ]
+# ─────────────────────────────────────────────────────────────────
+#  C++ core (optional)
+# ─────────────────────────────────────────────────────────────────
+QHAL_CPP_AVAILABLE = False
+try:
+    from .qhal_cpp import (
+        Channel, Envelope, Gate, Pulse, Program,
+        QubitCalibration, Calibration,
+        Compiler, Scheduler, ScheduleResult,
+        Simulator, Waveform, render,
+        save_npy, save_raw, save_csv, save_seqc,
+        total_energy,
+        Backend, MockAWG, ExecutionStats,
+    )
+    QHAL_CPP_AVAILABLE = True
 
+    try:
+        from .qhal_cpp import QICKBackend, ZurichBackend
+    except ImportError:
+        QICKBackend = None
+        ZurichBackend = None
 
-# ---------------------------------------------------------------------
-# Convenience: a fluent Circuit DSL
-# ---------------------------------------------------------------------
-class Circuit:
-    """Fluent circuit builder. Wraps a list of Gate objects."""
+    __all__ = [
+        "Channel", "Envelope",
+        "Gate", "Pulse", "Program",
+        "QubitCalibration", "Calibration",
+        "Compiler", "Scheduler", "ScheduleResult",
+        "Simulator",
+        "Waveform", "render",
+        "save_npy", "save_raw", "save_csv", "save_seqc",
+        "total_energy",
+        "Backend", "MockAWG", "ExecutionStats",
+        "QICKBackend", "ZurichBackend",
+    ]
+except ImportError:
+    # C++ extension not built. Pure-Python modules below still load.
+    pass
 
-    def __init__(self, num_qubits: int = 1):
-        self.num_qubits = num_qubits
-        self._gates: list[Gate] = []
+# ─────────────────────────────────────────────────────────────────
+#  Pure-Python modules (always available)
+# ─────────────────────────────────────────────────────────────────
 
-    def _add(self, name: str, qubits, params=None):
-        self._gates.append(Gate(name, list(qubits), list(params or [])))
-        return self
-
-    # Single-qubit gates
-    def h(self, q):           return self._add("H", [q])
-    def x(self, q):           return self._add("X", [q])
-    def y(self, q):           return self._add("Y", [q])
-    def z(self, q):           return self._add("Z", [q])
-    def s(self, q):           return self._add("S", [q])
-    def t(self, q):           return self._add("T", [q])
-    def rx(self, theta, q):   return self._add("RX", [q], [theta])
-    def ry(self, theta, q):   return self._add("RY", [q], [theta])
-    def rz(self, theta, q):   return self._add("RZ", [q], [theta])
-
-    # Two-qubit gates
-    def cnot(self, ctrl, tgt): return self._add("CNOT", [ctrl, tgt])
-    def cx(self, ctrl, tgt):   return self._add("CNOT", [ctrl, tgt])
-
-    # Measurement
-    def measure(self, qubits):
-        if isinstance(qubits, int):
-            qubits = [qubits]
-        return self._add("MEASURE", qubits)
-
-    # Access
-    @property
-    def gates(self) -> list[Gate]:
-        return list(self._gates)
-
-    def __len__(self):
-        return len(self._gates)
-
-    def __repr__(self):
-        lines = [f"Circuit({self.num_qubits} qubits, {len(self._gates)} gates)"]
-        for g in self._gates:
-            lines.append(f"  {g}")
-        return "\n".join(lines)
-
-
-# Pure Python backends
+# IBM backend (pure Python)
 try:
     from .backends.ibm import IBMBackend, available_backends
+    __all__ = list(globals().get("__all__", []))
     __all__ += ["IBMBackend", "available_backends"]
 except ImportError:
     pass
 
-
-# Heterogeneous joint measurement primitive
-try:
-    from .joint import JointMeasurement, JointResult, TransducerBackend
-    __all__ += ["JointMeasurement", "JointResult", "TransducerBackend"]
-except ImportError:
-    pass
-
-
-# Circuit IR + transpiler + queue + API
+# Circuit IR + transpiler
 try:
     from .ir import Circuit as IRCircuit, Gate as IRGate, bell_pair, ghz
     from .transpiler import Transpiler, CouplingMap, TranspileResult
     from .queue import JobQueue, Job, JobStatus, make_simulator_executor
+    __all__ = list(globals().get("__all__", []))
     __all__ += [
         "IRCircuit", "IRGate", "bell_pair", "ghz",
         "Transpiler", "CouplingMap", "TranspileResult",
         "JobQueue", "Job", "JobStatus", "make_simulator_executor",
     ]
 except ImportError:
-    pass  # Optional features; core qhal_cpp still loads
-
+    pass
 
 # qLDPC + CDCD
 try:
@@ -129,6 +79,7 @@ try:
         CheckAnnotation, AnnotatedProgram,
         annotate_program, build_check_noise, build_detector_error_model,
     )
+    __all__ = list(globals().get("__all__", []))
     __all__ += [
         "QLDPCCode", "bb_code", "gross_code", "small_bb", "repetition",
         "CheckAnnotation", "AnnotatedProgram",
@@ -136,3 +87,49 @@ try:
     ]
 except ImportError:
     pass
+
+# Decoder + qLDPC scheduler
+try:
+    from .decoder import (
+        DetectorErrorModel, DecodeResult,
+        build_dem_from_code, decode_with_bposd, co_design_benchmark,
+    )
+    from .qldpc_scheduler import (
+        TannerGraph, Schedule, ScheduleLayer, ScheduleComparison,
+        build_tanner_graph, schedule_greedy, schedule_local_search,
+        compare_schedulers, emit_pulses,
+    )
+    __all__ = list(globals().get("__all__", []))
+    __all__ += [
+        "DetectorErrorModel", "DecodeResult",
+        "build_dem_from_code", "decode_with_bposd", "co_design_benchmark",
+        "TannerGraph", "Schedule", "ScheduleLayer", "ScheduleComparison",
+        "build_tanner_graph", "schedule_greedy", "schedule_local_search",
+        "compare_schedulers", "emit_pulses",
+    ]
+except ImportError:
+    pass
+
+# RL (pure Python + torch)
+try:
+    from .rl.env import AtomArrangementEnv, StepResult
+    from .rl.policy import PolicyValueNet, RolloutBuffer
+    from .rl.ppo import PPOTrainer, PPOConfig
+    __all__ = list(globals().get("__all__", []))
+    __all__ += [
+        "AtomArrangementEnv", "StepResult",
+        "PolicyValueNet", "RolloutBuffer",
+        "PPOTrainer", "PPOConfig",
+    ]
+except ImportError:
+    pass
+
+try:
+    from .rl.gym_wrapper import ShapedAtomGym, ShapedAtomEnv
+    from .rl.features import AtomGridCNN
+    __all__ = list(globals().get("__all__", []))
+    __all__ += ["ShapedAtomGym", "ShapedAtomEnv", "AtomGridCNN"]
+except ImportError:
+    pass
+
+__version__ = "0.11.0"
