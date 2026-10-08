@@ -1,0 +1,194 @@
+[
+  {
+    "stage": 1,
+    "steps": 20480,
+    "success": 0.04,
+    "wall_clock_s": 147.31606888771057
+  },
+  {
+    "stage": 1,
+    "steps": 40960,
+    "success": 0.1,
+    "wall_clock_s": 312.78330755233765
+  },
+  {
+    "stage": 1,
+    "steps": 61440,
+    "success": 0.14,
+    "wall_clock_s": 483.7960262298584
+  },
+  {
+    "stage": 1,
+    "steps": 81920,
+    "success": 0.17,
+    "wall_clock_s": 662.8866567611694
+  },
+  {
+    "stage": 1,
+    "steps": 102400,
+    "success": 0.17,
+    "wall_clock_s": 831.5591621398926
+  },
+  {
+    "stage": 1,
+    "steps": 122880,
+    "success": 0.22,
+    "wall_clock_s": 999.279928445816
+  },
+  {
+    "stage": 1,
+    "steps": 143360,
+    "success": 0.23,
+    "wall_clock_s": 1164.766949415207
+  },
+  {
+    "stage": 1,
+    "steps": 163840,
+    "success": 0.31,
+    "wall_clock_s": 1328.1785368919373
+  },
+  {
+    "stage": 1,
+    "steps": 184320,
+    "success": 0.35,
+    "wall_clock_s": 1501.9893653392792
+  },
+  {
+    "stage": 1,
+    "steps": 204800,
+    "success": 0.33,
+    "wall_clock_s": 1672.4440441131592
+  },
+  {
+    "stage": 1,
+    "steps": 225280,
+    "success": 0.38,
+    "wall_clock_s": 1869.2954394817352
+  },
+  {
+    "stage": 1,
+    "steps": 245760,
+    "success": 0.45,
+    "wall_clock_s": 2053.8397052288055
+  },
+  {
+    "stage": 1,
+    "steps": 266240,
+    "success": 0.5,
+    "wall_clock_s": 2253.370594024658
+  },
+  {
+    "stage": 1,
+    "steps": 286720,
+    "success": 0.54,
+    "wall_clock_s": 2454.696690559387
+  },
+  {
+    "stage": 1,
+    "steps": 307200,
+    "success": 0.59,
+    "wall_clock_s": 2652.591229200363
+  },
+  {
+    "stage": 1,
+    "steps": 327680,
+    "success": 0.62,
+    "wall_clock_s": 2857.006591796875
+  },
+  {
+    "stage": 1,
+    "steps": 348160,
+    "success": 0.71,
+    "wall_clock_s": 3054.0256040096283
+  },
+  {
+    "stage": 1,
+    "steps": 368640,
+    "success": 0.77,
+    "wall_clock_s": 3252.690831184387
+  },
+  {
+    "stage": 1,
+    "steps": 389120,
+    "success": 0.74,
+    "wall_clock_s": 3451.9170894622803
+  },
+  {
+    "stage": 1,
+    "steps": 409600,
+    "success": 0.81,
+    "wall_clock_s": 3652.0487842559814
+  },
+  {
+    "stage": 1,
+    "steps": 430080,
+    "success": 0.89,
+    "wall_clock_s": 3848.470294237137
+  },
+  {
+    "stage": 1,
+    "steps": 450560,
+    "success": 0.92,
+    "wall_clock_s": 4048.7232563495636
+  },
+  {
+    "stage": 2,
+    "steps": 20480,
+    "success": 0.88,
+    "wall_clock_s": 178.31278228759766
+  },
+  {
+    "stage": 2,
+    "steps": 40960,
+    "success": 0.9,
+    "wall_clock_s": 359.63570499420166
+  },
+  {
+    "stage": 3,
+    "steps": 20480,
+    "success": 0.89,
+    "wall_clock_s": 174.2738151550293
+  },
+  {
+    "stage": 3,
+    "steps": 40960,
+    "success": 0.86,
+    "wall_clock_s": 335.650422334671
+  },
+  {
+    "stage": 3,
+    "steps": 61440,
+    "success": 0.88,
+    "wall_clock_s": 499.0690960884094
+  },
+  {
+    "stage": 3,
+    "steps": 81920,
+    "success": 0.93,
+    "wall_clock_s": 646.6331698894501
+  },
+  {
+    "stage": 3,
+    "steps": 102400,
+    "success": 0.92,
+    "wall_clock_s": 797.8851563930511
+  },
+  {
+    "stage": 3,
+    "steps": 122880,
+    "success": 0.9,
+    "wall_clock_s": 962.01074051857
+  },
+  {
+    "stage": 3,
+    "steps": 143360,
+    "success": 0.93,
+    "wall_clock_s": 1118.435558795929
+  },
+  {
+    "stage": 3,
+    "steps": 163840,
+    "success": 0.95,
+    "wall_clock_s": 1377.4419894218445
+  }
+]

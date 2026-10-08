@@ -51,6 +51,13 @@ class AtomGridCNN(BaseFeaturesExtractor):
         )
 
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
+        # Auto-cast input to match the model's dtype. Handles the
+        # float32 env -> float64 model case (and vice versa) without
+        # requiring a custom observation space.
+        target_dtype = self.linear[0].weight.dtype
+        if observations.dtype != target_dtype:
+            observations = observations.to(target_dtype)
+
         grid_dim = self.channels * self.grid_elements
         grid_data = observations[:, :grid_dim]
         scalars = observations[:, grid_dim:]
