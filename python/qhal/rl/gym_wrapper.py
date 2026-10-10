@@ -1,16 +1,14 @@
 """
-Gym wrapper for atom rearrangement on an H x W grid.
+Gym wrapper for atom rearrangement with Manhattan bipartite potential.
 
-Row/column AOD-style actions (2 * max(H,W) * 2 * 2 total),
-3-channel observation (state, target, diff), potential-based reward.
+The distance metric is the optimal assignment between current and
+target atom positions (Hungarian algorithm). This gives a smooth,
+dense reward signal — critical for the row/column AOD action space.
 """
 from __future__ import annotations
 import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
-
-
-DIRECTIONS = [(-1, 0), (1, 0), (0, -1), (0, 1)]
 
 
 class ShapedAtomGym(gym.Env):
@@ -30,7 +28,6 @@ class ShapedAtomGym(gym.Env):
         self.shape_scale = shape_scale
         self.step_penalty = step_penalty
 
-        # Row/column AOD-style action space
         self.n_axes = 2
         self.n_indices = max(self.H, self.W)
         self.n_dirs = 2
@@ -46,9 +43,8 @@ class ShapedAtomGym(gym.Env):
         self.target = None
         self.steps = 0
         self.prev_dist = 0.0
-        self._last_potential = 0.0
 
-    # ── action encoding ──
+    # ── action decoding ──
     def decode_action(self, action):
         a = int(action)
         mag = a % self.n_mags;     a //= self.n_mags
@@ -62,15 +58,13 @@ class ShapedAtomGym(gym.Env):
         for a in range(self.n_actions):
             ax, idx, d, m = self.decode_action(a)
             limit = self.H if ax == 0 else self.W
-            if idx >= limit:
-                mask[a] = False
-                continue
-            if idx + d * m < 0 or idx + d * m >= limit:
+            if idx >= limit or idx + d * m < 0 or idx + d * m >= limit:
                 mask[a] = False
         return mask
 
     # ── move ──
     def _apply_move(self, grid, action):
+        import torch
         ax, idx, d, m = self.decode_action(action)
         shift = d * m
         g = grid.clone()
@@ -86,16 +80,21 @@ class ShapedAtomGym(gym.Env):
                 g[:, idx + shift] |= col
         return g
 
-    # ── observation ──
+    # ── Manhattan bipartite distance ──
+    def _dist(self):
+        from scipy.optimize import linear_sum_assignment
+        c = np.argwhere(self.grid.numpy() > 0)
+        t = np.argwhere(self.target.numpy() > 0)
+        if len(c) == 0 or len(c) != len(t):
+            return float(len(c) + len(t))
+        D = np.abs(c[:, None, :] - t[None, :, :]).sum(axis=-1)
+        r, cc = linear_sum_assignment(D)
+        return float(D[r, cc].sum())
+
     def _get_obs(self):
         state = self.grid.float().numpy()
         targ = self.target.float().numpy()
-        diff = state - targ
-        return np.stack([state, targ, diff], axis=0).astype(np.float32)
-
-    def _dist(self):
-        import torch
-        return float((self.grid != self.target).sum().item())
+        return np.stack([state, targ, state - targ], axis=0).astype(np.float32)
 
     # ── gym API ──
     def reset(self, seed=None, options=None):
@@ -114,9 +113,7 @@ class ShapedAtomGym(gym.Env):
             tgt = self._apply_move(tgt, a)
         self.target = tgt
         self.prev_dist = self._dist()
-        obs = self._get_obs()
-        self._last_potential = -self.prev_dist
-        return obs, {}
+        return self._get_obs(), {}
 
     def set_curriculum(self, scramble=None, max_steps=None, shape_scale=None):
         if scramble is not None:    self.target_scramble = scramble
@@ -131,7 +128,7 @@ class ShapedAtomGym(gym.Env):
         terminated = bool(new_dist == 0)
         truncated  = self.steps >= self.max_steps
 
-        # Potential-based reward
+        # Potential-based shaping using Manhattan matching
         reward = self.shape_scale * (self.prev_dist - new_dist)
         reward -= self.step_penalty
         if terminated:
