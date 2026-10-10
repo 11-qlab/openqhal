@@ -1,111 +1,142 @@
 """
-Gym.Env wrapper around ShapedAtomEnv for Stable-Baselines3.
+Gym wrapper for atom rearrangement on an H x W grid.
 
-Provides the (obs, reward, terminated, truncated, info) API that SB3
-expects, while delegating the actual physics to the existing env.
-
-The wrapper also exposes set_curriculum() to change scramble and
-horizon between stages without rebuilding the env.
+Row/column AOD-style actions (2 * max(H,W) * 2 * 2 total),
+3-channel observation (state, target, diff), potential-based reward.
 """
 from __future__ import annotations
 import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
 
-from .env import AtomArrangementEnv
+
+DIRECTIONS = [(-1, 0), (1, 0), (0, -1), (0, 1)]
 
 
 class ShapedAtomGym(gym.Env):
     metadata = {"render_modes": []}
 
-    def __init__(self, grid_size: int, n_atoms: int,
-                 max_steps: int = 12, scramble: int = 1,
-                 shape_scale: float = 0.15, step_penalty: float = 0.01,
-                 seed: int = None):
+    def __init__(self, grid_size: int = 5, n_atoms: int = 5,
+                 max_steps: int = 15, scramble: int = 1,
+                 shape_scale: float = 0.5, step_penalty: float = 0.01,
+                 seed: int = None, W: int = None):
         super().__init__()
-        self.grid_size = grid_size
         self.H = grid_size
-        self.W = grid_size
-
-        self.env = AtomArrangementEnv(
-            grid_size=grid_size, n_atoms=n_atoms,
-            max_steps=max_steps, target_scramble=scramble,
-            seed=seed)
-
+        self.W = W if W is not None else grid_size
+        self.n_cells = self.H * self.W
+        self.n_atoms = n_atoms
         self.max_steps = max_steps
+        self.target_scramble = scramble
         self.shape_scale = shape_scale
         self.step_penalty = step_penalty
+
+        # Row/column AOD-style action space
+        self.n_axes = 2
+        self.n_indices = max(self.H, self.W)
+        self.n_dirs = 2
+        self.n_mags = 2
+        self.n_actions = self.n_axes * self.n_indices * self.n_dirs * self.n_mags
+
+        self.observation_space = spaces.Box(
+            low=-1.0, high=1.0, shape=(3, self.H, self.W), dtype=np.float32)
+        self.action_space = spaces.Discrete(self.n_actions)
+
+        self.rng = np.random.default_rng(seed)
+        self.grid = None
+        self.target = None
+        self.steps = 0
+        self.prev_dist = 0.0
         self._last_potential = 0.0
 
-        # Spaces — SB3 needs these to build the model
-        state_dim = self.env.state_dim
-        self.observation_space = spaces.Box(
-            low=-1.0, high=1.0, shape=(state_dim,), dtype=np.float32)
-        self.action_space = spaces.Discrete(self.env.n_actions)
+    # ── action encoding ──
+    def decode_action(self, action):
+        a = int(action)
+        mag = a % self.n_mags;     a //= self.n_mags
+        d   = a % self.n_dirs;     a //= self.n_dirs
+        idx = a % self.n_indices;  a //= self.n_indices
+        ax  = a
+        return ax, idx, (-1 if d == 0 else 1), (mag + 1)
 
-    # ── potential via Manhattan bipartite matching ──
-    def _potential(self, obs: np.ndarray) -> float:
-        area = self.H * self.W
-        curr = obs[:area].reshape(self.H, self.W) > 0.5
-        targ = obs[area:2 * area].reshape(self.H, self.W) > 0.5
-        ci = np.argwhere(curr)
-        ti = np.argwhere(targ)
-        if len(ci) == 0 or len(ci) != len(ti):
-            return 0.0
-        dists = np.abs(ci[:, None, :] - ti[None, :, :]).sum(axis=-1)
-        # Greedy assignment (faster than full Hungarian and adequate)
-        order = np.argsort(dists, axis=1)
-        used = set()
-        total = 0
-        for i in range(len(ci)):
-            for j in order[i]:
-                if j not in used:
-                    used.add(j)
-                    total += dists[i, j]
-                    break
-        return -float(total)
+    def action_mask(self):
+        mask = np.ones(self.n_actions, dtype=bool)
+        for a in range(self.n_actions):
+            ax, idx, d, m = self.decode_action(a)
+            limit = self.H if ax == 0 else self.W
+            if idx >= limit:
+                mask[a] = False
+                continue
+            if idx + d * m < 0 or idx + d * m >= limit:
+                mask[a] = False
+        return mask
 
-    # ── curriculum control ──
-    def set_curriculum(self, scramble: int = None, max_steps: int = None,
-                        shape_scale: float = None):
-        if scramble is not None:
-            self.env.target_scramble = scramble
-        if max_steps is not None:
-            self.env.max_steps = max_steps
-            self.max_steps = max_steps
-        if shape_scale is not None:
-            self.shape_scale = shape_scale
+    # ── move ──
+    def _apply_move(self, grid, action):
+        ax, idx, d, m = self.decode_action(action)
+        shift = d * m
+        g = grid.clone()
+        if ax == 0:
+            if 0 <= idx < self.H and 0 <= idx + shift < self.H:
+                row = g[idx].clone()
+                g[idx] = 0
+                g[idx + shift] |= row
+        else:
+            if 0 <= idx < self.W and 0 <= idx + shift < self.W:
+                col = g[:, idx].clone()
+                g[:, idx] = 0
+                g[:, idx + shift] |= col
+        return g
+
+    # ── observation ──
+    def _get_obs(self):
+        state = self.grid.float().numpy()
+        targ = self.target.float().numpy()
+        diff = state - targ
+        return np.stack([state, targ, diff], axis=0).astype(np.float32)
+
+    def _dist(self):
+        import torch
+        return float((self.grid != self.target).sum().item())
 
     # ── gym API ──
-    def reset(self, *, seed=None, options=None):
+    def reset(self, seed=None, options=None):
+        import torch
         if seed is not None:
-            self.env.rng = np.random.default_rng(seed)
-        obs = self.env.reset()
-        self._last_potential = self._potential(np.asarray(obs))
-        return np.asarray(obs, dtype=np.float32), {}
+            self.rng = np.random.default_rng(seed)
+        self.steps = 0
+        flat = np.zeros(self.n_cells, dtype=np.int8)
+        idx = self.rng.choice(self.n_cells, size=self.n_atoms, replace=False)
+        flat[idx] = 1
+        self.grid = torch.tensor(flat, dtype=torch.int8).reshape(self.H, self.W)
 
-    def step(self, action: int):
-        r = self.env.step(int(action))
-        obs = np.asarray(r.state, dtype=np.float32)
-        new_potential = self._potential(obs)
+        tgt = self.grid.clone()
+        for _ in range(self.target_scramble):
+            a = int(self.rng.integers(0, self.n_actions))
+            tgt = self._apply_move(tgt, a)
+        self.target = tgt
+        self.prev_dist = self._dist()
+        obs = self._get_obs()
+        self._last_potential = -self.prev_dist
+        return obs, {}
 
-        # Potential-based shaping (Ng et al. 1999)
-        potential_delta = new_potential - self._last_potential
-        self._last_potential = new_potential
-        bonus = float(self.shape_scale * potential_delta) - self.step_penalty
+    def set_curriculum(self, scramble=None, max_steps=None, shape_scale=None):
+        if scramble is not None:    self.target_scramble = scramble
+        if max_steps is not None:   self.max_steps = max_steps
+        if shape_scale is not None: self.shape_scale = shape_scale
 
-        reward = float(r.reward) + bonus
-        terminated = bool(r.done and r.info.get("success", False))
-        truncated = bool(r.done and not r.info.get("success", False))
-        info = {"is_success": bool(r.info.get("success", False)),
-                "distance": int(r.info.get("distance", -1)),
-                "steps": int(r.info.get("steps", 0))}
-        return obs, reward, terminated, truncated, info
+    def step(self, action):
+        self.grid = self._apply_move(self.grid, action)
+        self.steps += 1
+        new_dist = self._dist()
 
-    def action_mask(self) -> np.ndarray:
-        """Boolean mask: True where action is valid."""
-        return self.env.action_mask().numpy()
+        terminated = bool(new_dist == 0)
+        truncated  = self.steps >= self.max_steps
 
+        # Potential-based reward
+        reward = self.shape_scale * (self.prev_dist - new_dist)
+        reward -= self.step_penalty
+        if terminated:
+            reward += 5.0
+        self.prev_dist = new_dist
 
-# Backwards-compat alias
-ShapedAtomEnv = ShapedAtomGym
+        info = {"is_success": terminated}
+        return self._get_obs(), float(reward), terminated, truncated, info

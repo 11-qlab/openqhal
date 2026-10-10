@@ -1,74 +1,21 @@
-"""
-CNN feature extractor for the atom grid observation.
-
-Splits the flat observation into grid channels and scalars.
-The grid is reshaped into (channels, H, W) and passed through a
-small CNN. The output is concatenated with the scalars and
-projected to a fixed-size feature vector for the policy / value heads.
-"""
-from __future__ import annotations
-import torch
+"""CNN feature extractor for 3-channel grid observations."""
+import torch as th
 import torch.nn as nn
-
-try:
-    from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
-    _HAS_SB3 = True
-except ImportError:
-    BaseFeaturesExtractor = nn.Module
-    _HAS_SB3 = False
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
 
 class AtomGridCNN(BaseFeaturesExtractor):
-    """CNN feature extractor for grid-shaped atom observations."""
-
-    def __init__(self, observation_space, features_dim: int = 256,
-                 grid_size: int = 5):
-        if _HAS_SB3:
-            super().__init__(observation_space, features_dim)
-        else:
-            super().__init__()
-
-        self.grid_size = grid_size
-        input_dim = int(observation_space.shape[0])
-
-        self.grid_elements = grid_size * grid_size
-        self.channels = max(1, input_dim // self.grid_elements)
-        self.scalar_dim = input_dim - self.channels * self.grid_elements
-
+    def __init__(self, observation_space, features_dim=256, grid_size=None):
+        super().__init__(observation_space, features_dim)
         self.cnn = nn.Sequential(
-            nn.Conv2d(self.channels, 32, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(32, 64, kernel_size=3, padding=1),
-            nn.ReLU(),
+            nn.Conv2d(3, 32, 3, padding=1), nn.ReLU(),
+            nn.Conv2d(32, 64, 3, padding=1), nn.ReLU(),
             nn.Flatten(),
         )
+        with th.no_grad():
+            sample = th.as_tensor(observation_space.sample()[None, ...])
+            n = self.cnn(sample).shape[1]
+        self.linear = nn.Sequential(nn.Linear(n, features_dim), nn.ReLU())
 
-        cnn_out = 64 * self.grid_size * self.grid_size
-
-        self.linear = nn.Sequential(
-            nn.Linear(cnn_out + self.scalar_dim, features_dim),
-            nn.ReLU(),
-        )
-
-    def forward(self, observations: torch.Tensor) -> torch.Tensor:
-        # Auto-cast input to match the model's dtype. Handles the
-        # float32 env -> float64 model case (and vice versa) without
-        # requiring a custom observation space.
-        target_dtype = self.linear[0].weight.dtype
-        if observations.dtype != target_dtype:
-            observations = observations.to(target_dtype)
-
-        grid_dim = self.channels * self.grid_elements
-        grid_data = observations[:, :grid_dim]
-        scalars = observations[:, grid_dim:]
-
-        grid_2d = grid_data.view(-1, self.channels,
-                                  self.grid_size, self.grid_size)
-        cnn_features = self.cnn(grid_2d)
-
-        if self.scalar_dim > 0:
-            combined = torch.cat((cnn_features, scalars), dim=1)
-        else:
-            combined = cnn_features
-
-        return self.linear(combined)
+    def forward(self, x):
+        return self.linear(self.cnn(x))
