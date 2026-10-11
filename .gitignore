@@ -55,3 +55,8 @@ logs/
 *.gemini
 *.important
 *.bak
+
+# RL training checkpoints
+rl_loss_recovery/
+rl_checkpoints*/
+models/

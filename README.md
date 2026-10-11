@@ -322,6 +322,35 @@ Requirements
 · qiskit, qiskit-ibm-runtime (for the IBM backend)
 · qutip (optional, for accurate pulse simulation)
 
+
+          Circuit  →  initial atom configuration
+                        │
+                        ▼
+          ┌─────────────────────────────┐
+          │   Classical planner         │
+          │   100% success              │
+          │   5-200 ms per plan         │
+          └─────────────────────────────┘
+                        │
+                        ▼
+               Execute moves on AOD
+                        │
+    ┌───────────────────┴───────────────────┐
+    │                                       │
+no loss                              loss detected
+    │                                       │
+    │                                       ▼
+    │                          ┌─────────────────────────┐
+    │                          │   RL recovery policy    │
+    │                          │   98% at p_loss=0.1     │
+    │                          │   ~1 ms per decision    │
+    │                          └─────────────────────────┘
+    │                                       │
+    └───────────────────┬───────────────────┘
+                        ▼
+                target reached
+
+
 License
 
 Apache 2.0. See LICENSE.
