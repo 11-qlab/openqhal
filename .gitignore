@@ -43,3 +43,15 @@ paper/*.toc
 paper/*.fls
 paper/*.fdb_latexmk
 paper/openqhalNotes.bib
+
+# Large binaries and generated outputs
+rl_checkpoints/
+rl_checkpoints_*/
+models/
+results/
+logs/
+
+# Scratch files
+*.gemini
+*.important
+*.bak
