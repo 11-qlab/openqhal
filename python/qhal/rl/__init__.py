@@ -26,3 +26,13 @@ try:
     __all__ += ["ShapedAtomGym", "ShapedAtomEnv", "AtomGridCNN"]
 except ImportError:
     pass
+
+
+# Classical planner + pipeline
+try:
+    from .planner import ClassicalPlanner, Move
+    from .pipeline import RearrangementPipeline, PipelineResult
+    __all__ += ["ClassicalPlanner", "Move",
+                "RearrangementPipeline", "PipelineResult"]
+except ImportError:
+    pass
